@@ -22,6 +22,7 @@ Version:1.0
 #include <QMessageBox>
 #include <QList>
 #include <QVector>
+#include <string>
 int ***tensor_bloques_id;
 int ***tensor_bloques_egreso;
 int **matriz_bloques;
@@ -432,10 +433,13 @@ void MainWindow::on_actionAbrir_triggered()
 void MainWindow::on_actionOptimizar_triggered()
 {
     QList<int> nodos_vivos;
-
+    QList<QString> nodos_raiz;
     //Generar tensor con elementos y variantes de cada bloque.
     generar_tensor(obj);
-    generar_raiz(&nodos_vivos);
+    //Generar los nodos raiz de cada bloque
+    generar_raiz(&nodos_raiz);
+    //Generar todos los nodos
+
 
 }
 /*
@@ -508,23 +512,23 @@ void MainWindow::generar_tensor(QJsonObject obj)
 
 
 }
-
-void MainWindow::generar_raiz(QList<int> *nodos_vivos)
+/*
+    Se generan los nodos raiz de cada bloque.
+*/
+void MainWindow::generar_raiz(QList<QString> *nodos_raiz)
 {
+    QString nodo="";
     QList<int> nodo_raiz;
-    QList<int> nodos_raiz;
     for (int i=0 ; i<8 ; i++)
     {
         for (int j=0 ; j<*(vector_bloques+i) ; j++)
         {
+            nodo = nodo + "," + QString::number(*(*(*(tensor_bloques_id+i)+j)+0)) ;
             nodo_raiz.append(*(*(*(tensor_bloques_id+i)+j)+0));
         }
-        nodos_raiz.append(nodo_raiz);
-        nodo_raiz.clear();
+        nodo.remove(0,1);
+        nodos_raiz->append(nodo);
+        nodo = "";
     }
-    cout <<"Se generaron "<< nodos_raiz.length() << " nodos raiz"<<endl;
-    for(int i=0; i<nodos_raiz.length() ; i++)
-    {
-        cout << nodos_raiz.at(i) << endl;
-    }
+
 }

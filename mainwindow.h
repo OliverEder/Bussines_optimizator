@@ -49,7 +49,7 @@ private slots:
 
     void generar_tensor(QJsonObject);
 
-    void generar_raiz(QList<int> *nodos_vivos);
+    void generar_raiz(QList<QString> *nodos_raiz);
 
 private:
     Ui::MainWindow *ui;
