@@ -19,6 +19,8 @@ class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
+typedef QList<int> nodo;
+
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
@@ -49,7 +51,9 @@ private slots:
 
     void generar_tensor(QJsonObject);
 
-    void generar_raiz(QList<QString> *nodos_raiz);
+    void generar_raiz(QList<nodo> *nodos_raiz);
+
+    void generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodos_grafo);
 
 private:
     Ui::MainWindow *ui;

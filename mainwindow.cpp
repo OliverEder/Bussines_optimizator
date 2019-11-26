@@ -432,14 +432,19 @@ void MainWindow::on_actionAbrir_triggered()
 */
 void MainWindow::on_actionOptimizar_triggered()
 {
-    QList<int> nodos_vivos;
-    QList<QString> nodos_raiz;
+
+
+    QList<nodo> nodos_raiz;
+    QList<nodo> nodos_vivos;
+    QList<nodo> nodos_utiles;
+    QList<nodo> nodos_grafo;
+
     //Generar tensor con elementos y variantes de cada bloque.
     generar_tensor(obj);
     //Generar los nodos raiz de cada bloque
     generar_raiz(&nodos_raiz);
     //Generar todos los nodos
-
+    generar_combinatoria(&nodos_raiz, &nodos_grafo);
 
 }
 /*
@@ -515,20 +520,61 @@ void MainWindow::generar_tensor(QJsonObject obj)
 /*
     Se generan los nodos raiz de cada bloque.
 */
-void MainWindow::generar_raiz(QList<QString> *nodos_raiz)
+void MainWindow::generar_raiz(QList<nodo> *nodos_raiz)
 {
-    QString nodo="";
-    QList<int> nodo_raiz;
+    nodo nodo_raiz;
+
+    cout << "Generando nodos raiz" << endl;
+
     for (int i=0 ; i<8 ; i++)
     {
         for (int j=0 ; j<*(vector_bloques+i) ; j++)
         {
-            nodo = nodo + "," + QString::number(*(*(*(tensor_bloques_id+i)+j)+0)) ;
             nodo_raiz.append(*(*(*(tensor_bloques_id+i)+j)+0));
         }
-        nodo.remove(0,1);
-        nodos_raiz->append(nodo);
-        nodo = "";
+        nodos_raiz->append(nodo_raiz);
+        nodo_raiz.clear();
     }
+
+}
+/*
+    Se genera la combinatoria de todos los nodos del arbol
+    se recibe una lista con los nodos raiz de cada bloque
+
+*/
+void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodos_grafo)
+{
+    nodo nodo_nuevo;
+    QList<nodo> nodos_vivos;
+    QList<nodo> nodos_utiles;
+    cout << "Generando combinatoria" << endl;
+    for (int b=0 ; b<nodos_raiz->size() ; b++)
+    {
+        nodos_vivos.append(nodos_raiz->at(b));
+
+        do{
+            nodo_nuevo = nodos_vivos.at(0);
+            for (int e=0 ; e<nodo_nuevo.size() ; e++)
+            {
+                nodo_nuevo = nodos_vivos.at(0);
+                for (int v=0 ; v<*(*(matriz_bloques+e)+v) ; v++)
+                {
+                    nodo_nuevo.replace(e, *(*(*(tensor_bloques_id+b)+e)+v));
+                    //cout << *(*(*(tensor_bloques_id+b)+e)+v) << " ";
+                    for (int i=0 ; i<nodo_nuevo.size() ; i++)
+                    {
+                        cout << nodo_nuevo.at(i) << " ";
+                    }
+                    cout << endl;
+                }
+                cout << endl;
+            }
+
+            nodo_nuevo.clear();
+            nodos_vivos.pop_front();
+        }while(nodos_vivos.size() != 0);
+
+    }
+
 
 }
