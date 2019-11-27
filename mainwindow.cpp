@@ -551,7 +551,7 @@ void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodo
     for (int b=0 ; b<nodos_raiz->size() ; b++)
     {
         nodos_vivos.append(nodos_raiz->at(b));
-
+        nodos_utiles.append(nodos_raiz->at(b));
         do{
             nodo_nuevo = nodos_vivos.at(0);
             for (int e=0 ; e<nodo_nuevo.size() ; e++)
@@ -559,14 +559,32 @@ void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodo
                 nodo_nuevo = nodos_vivos.at(0);
                 for (int v=0 ; v<*(*(matriz_bloques+e)+v) ; v++)
                 {
+
                     nodo_nuevo.replace(e, *(*(*(tensor_bloques_id+b)+e)+v));
-                    //cout << *(*(*(tensor_bloques_id+b)+e)+v) << " ";
-                    for (int i=0 ; i<nodo_nuevo.size() ; i++)
+                    if(nodos_utiles.contains(nodo_nuevo))
                     {
-                        cout << nodo_nuevo.at(i) << " ";
+                        cout << "El nodo ya existe " << nodos_utiles.contains(nodo_nuevo)<< endl;
+                        for (int i=0 ; i<nodo_nuevo.size() ; i++)
+                        {
+                            cout << nodo_nuevo.at(i) << " ";
+                        }
+                        cout << endl;
                     }
-                    cout << endl;
+                    else
+                    {
+                        cout << "nodo nuevo " << nodos_utiles.contains(nodo_nuevo)<< endl;
+                        nodos_vivos.append(nodo_nuevo);
+                        nodos_utiles.append(nodo_nuevo);
+
+                        for (int i=0 ; i<nodo_nuevo.size() ; i++)
+                        {
+                            cout << nodo_nuevo.at(i) << " ";
+                        }
+                        cout << endl;
+                    }
+
                 }
+
                 cout << endl;
             }
 
@@ -575,6 +593,18 @@ void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodo
         }while(nodos_vivos.size() != 0);
 
     }
+    cout << "nodos finales:" << nodos_utiles.size() <<endl;
+    int contador= 0;
+    for (int i=0 ; i<nodos_utiles.size() ; i++)
+    {
+        contador++;
+        cout << contador << " -> " ;
+        for (int j=0 ; j<nodos_utiles.at(i).size(); j++)
+        {
 
+            cout << nodos_utiles.at(i).at(j) << " ";
+        }
+        cout << endl;
+    }
 
 }
