@@ -545,6 +545,7 @@ void MainWindow::generar_raiz(QList<nodo> *nodos_raiz)
 void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodos_grafo)
 {
     nodo nodo_nuevo;
+    nodo nodo_final;
     QList<nodo> nodos_vivos;
     QList<nodo> nodos_utiles;
     cout << "Generando combinatoria" << endl;
@@ -552,59 +553,57 @@ void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodo
     {
         nodos_vivos.append(nodos_raiz->at(b));
         nodos_utiles.append(nodos_raiz->at(b));
+        nodo_final.clear();
+        nodo_final = nodos_vivos.at(0);
+        nodo_final.push_front(b);
+        nodos_grafo->append(nodo_final);
         do{
             nodo_nuevo = nodos_vivos.at(0);
             for (int e=0 ; e<nodo_nuevo.size() ; e++)
             {
                 nodo_nuevo = nodos_vivos.at(0);
+
                 for (int v=0 ; v<*(*(matriz_bloques+e)+v) ; v++)
                 {
-
                     nodo_nuevo.replace(e, *(*(*(tensor_bloques_id+b)+e)+v));
                     if(nodos_utiles.contains(nodo_nuevo))
                     {
-                        cout << "El nodo ya existe " << nodos_utiles.contains(nodo_nuevo)<< endl;
-                        for (int i=0 ; i<nodo_nuevo.size() ; i++)
-                        {
-                            cout << nodo_nuevo.at(i) << " ";
-                        }
-                        cout << endl;
+                        //cout << "El nodo ya existe " << nodos_utiles.contains(nodo_nuevo)<< endl;
                     }
                     else
                     {
-                        cout << "nodo nuevo " << nodos_utiles.contains(nodo_nuevo)<< endl;
+                        //cout << "nodo nuevo " << nodos_utiles.contains(nodo_nuevo)<< endl;
+
                         nodos_vivos.append(nodo_nuevo);
                         nodos_utiles.append(nodo_nuevo);
+                        nodo_final.clear();
+                        nodo_final = nodo_nuevo;
+                        nodo_final.push_front(b);
+                        nodos_grafo->append(nodo_final);
 
-                        for (int i=0 ; i<nodo_nuevo.size() ; i++)
-                        {
-                            cout << nodo_nuevo.at(i) << " ";
-                        }
-                        cout << endl;
                     }
-
                 }
-
-                cout << endl;
             }
-
+            nodo_final.clear();
             nodo_nuevo.clear();
             nodos_vivos.pop_front();
         }while(nodos_vivos.size() != 0);
 
     }
     cout << "nodos finales:" << nodos_utiles.size() <<endl;
+
     int contador= 0;
-    for (int i=0 ; i<nodos_utiles.size() ; i++)
+    for (int i=0 ; i<nodos_grafo->size() ; i++)
     {
         contador++;
         cout << contador << " -> " ;
-        for (int j=0 ; j<nodos_utiles.at(i).size(); j++)
+        for (int j=0 ; j<nodos_grafo->at(i).size(); j++)
         {
 
-            cout << nodos_utiles.at(i).at(j) << " ";
+            cout << nodos_grafo->at(i).at(j) << " ";
         }
         cout << endl;
     }
+
 
 }
