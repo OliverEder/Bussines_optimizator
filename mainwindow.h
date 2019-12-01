@@ -20,6 +20,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 typedef QList<int> nodo;
+typedef QList<double> nodo_dist;
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
@@ -49,11 +50,19 @@ private slots:
 
     void on_actionOptimizar_triggered();
 
+    void optimizar(QString);
+
+    void calcular_maximo(QString, double *, QJsonObject);
+
     void generar_tensor(QJsonObject);
 
-    void generar_raiz(QList<nodo> *nodos_raiz);
+    void generar_tensor_max(QString cadena,double *max, QJsonObject obj);
 
-    void generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodos_grafo);
+    void generar_raiz(QList<nodo> *nodos_raiz, QList<nodo_dist> *nodos_raiz_dist);
+
+    void generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_raiz_dist, QList<nodo_dist> *nodos_grafo_dist);
+
+    void generar_matriz_adyacencias(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist);
 
 private:
     Ui::MainWindow *ui;

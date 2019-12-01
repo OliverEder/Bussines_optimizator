@@ -6,6 +6,7 @@ Version:1.0
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "treemodel.h"
+#include <QInputDialog>
 #include <QFile>
 #include <QFileDialog>
 #include <QTreeView>
@@ -23,10 +24,14 @@ Version:1.0
 #include <QList>
 #include <QVector>
 #include <string>
+#include "math.h"
+
 int ***tensor_bloques_id;
-int ***tensor_bloques_egreso;
+double ***tensor_bloques_dist;
 int **matriz_bloques;
 int *vector_bloques;
+double **matriz_ayacencias;
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
@@ -432,26 +437,117 @@ void MainWindow::on_actionAbrir_triggered()
 */
 void MainWindow::on_actionOptimizar_triggered()
 {
+    QInputDialog qDialog ;
+    QStringList items;
+    items << QString("Egreso");
+    items << QString("Ingreso");
+    items << QString("Ganancia");
+    qDialog.setLabelText("¿Que dese optimizar?");
+    qDialog.setOptions(QInputDialog::UseListViewForComboBoxItems);
+    qDialog.setComboBoxItems(items);
+    qDialog.setWindowTitle("Optimizar");
 
+    if (qDialog.exec())
+    {
+       optimizar(qDialog.textValue());
+    }
 
+}
+void MainWindow::optimizar(QString cadena)
+{
     QList<nodo> nodos_raiz;
+    QList<nodo_dist> nodos_raiz_dist;
     QList<nodo> nodos_vivos;
     QList<nodo> nodos_utiles;
     QList<nodo> nodos_grafo;
+    QList<nodo_dist> nodos_grafo_dist;
 
-    //Generar tensor con elementos y variantes de cada bloque.
-    generar_tensor(obj);
+    double max = 0;
+
+    if(cadena == "Egreso")
+    {
+        //Egreso
+        //Generar tensor con elementos y variantes de cada bloque.
+        generar_tensor(obj);
+    }
+    else
+    {
+        calcular_maximo(cadena, &max, obj);
+        cout << "Maximo:" << max << endl;
+        //Generar tensor con elementos y variantes de cada bloque.
+        generar_tensor_max(cadena, &max, obj);
+    }
     //Generar los nodos raiz de cada bloque
-    generar_raiz(&nodos_raiz);
+    generar_raiz(&nodos_raiz, &nodos_raiz_dist);
     //Generar todos los nodos
-    generar_combinatoria(&nodos_raiz, &nodos_grafo);
+    generar_combinatoria(&nodos_raiz, &nodos_grafo, &nodos_raiz_dist, &nodos_grafo_dist);
+
+    //Generar Matriz de adyacencias
+    generar_matriz_adyacencias(&nodos_grafo, &nodos_grafo_dist);
+
 
 }
+
 /*
     Se generan dos tensores donde cada matriz contiene las variantes de cada elemento del
     bloque. Un tensor contiene los ID  de cada variante y otro tensor contiene los egresos
     de cada variante.
 */
+
+void MainWindow::calcular_maximo(QString cadena,double *max, QJsonObject obj)
+{
+    QJsonObject objeto_bloque;
+    QJsonArray arreglo_bloques;
+    QJsonObject objeto_elemento;
+    QJsonArray arreglo_elementos;
+    QJsonObject objeto_variante;
+    QJsonArray arreglo_variantes;
+
+    double current=0;
+
+    arreglo_bloques=obj["bloques"].toArray();
+
+    for(int i=0 ; i < arreglo_bloques.size() ; i++)
+    {
+       //Se pasa el objeto en curso a objeto_bloque
+       objeto_bloque = arreglo_bloques.at(i).toObject();
+       if(objeto_bloque.value("Elementos").isArray())
+       {
+            arreglo_elementos = objeto_bloque.value("Elementos").toArray();
+            for(int j=0 ; j < arreglo_elementos.size() ; j++)
+            {
+                objeto_elemento = arreglo_elementos.at(j).toObject();
+                if(objeto_elemento.value("Variantes").isArray())
+                {
+                    arreglo_variantes = objeto_elemento.value("Variantes").toArray();
+                    for(int k=0; k<arreglo_variantes.size() ; k++)
+                    {
+                        objeto_variante = arreglo_variantes.at(k).toObject();
+                        current = objeto_variante.value(cadena).toDouble();
+                        if(*max-current < 0.00)
+                        {
+                            *max = current;
+                        }
+
+                    }
+                }
+                else
+                {
+                    cout << "El elemento " << objeto_elemento.value("Elemento").toString().toStdString() << " no contiene variantes" <<endl;
+                    cout << "No es posible generar la optimizacion" << endl;
+                    break;
+                }
+            }
+       }
+       else
+       {
+           cout << "El bloque "<< objeto_bloque.value("Bloque").toString().toStdString() << " no contiene elementos"<<endl;
+           cout << "No es posible generar la optimizacion" << endl;
+           break;
+       }
+    }
+
+}
 void MainWindow::generar_tensor(QJsonObject obj)
 {
     cout << "Generando tensores" << endl;
@@ -462,10 +558,9 @@ void MainWindow::generar_tensor(QJsonObject obj)
     QJsonObject objeto_variante;
     QJsonArray arreglo_variantes;
 
-
     arreglo_bloques=obj["bloques"].toArray();
     tensor_bloques_id = (int ***) malloc(sizeof(int**) * arreglo_bloques.size());
-    tensor_bloques_egreso = (int ***) malloc(sizeof(int**) * arreglo_bloques.size());
+    tensor_bloques_dist = (double ***) malloc(sizeof(double**) * arreglo_bloques.size());
     matriz_bloques = (int **) malloc(sizeof(int*) * arreglo_bloques.size());
     vector_bloques = (int *) malloc(sizeof(int) * arreglo_bloques.size());
     for(int i=0 ; i<arreglo_bloques.size() ; i++)
@@ -482,7 +577,7 @@ void MainWindow::generar_tensor(QJsonObject obj)
             *(vector_bloques+i) = arreglo_elementos.size();
             matriz_bloques[i] = (int *) malloc(sizeof(int) * arreglo_elementos.size());
             tensor_bloques_id[i] = (int **) malloc(sizeof(int*) * arreglo_elementos.size());
-            tensor_bloques_egreso[i] = (int **) malloc(sizeof(int*) * arreglo_elementos.size());
+            tensor_bloques_dist[i] = (double **) malloc(sizeof(double*) * arreglo_elementos.size());
             for(int j=0 ; j < arreglo_elementos.size() ; j++)
             {
                 objeto_elemento = arreglo_elementos.at(j).toObject();
@@ -491,12 +586,12 @@ void MainWindow::generar_tensor(QJsonObject obj)
                     arreglo_variantes = objeto_elemento.value("Variantes").toArray();
                     *(*(matriz_bloques+i)+j)= arreglo_variantes.size();
                     tensor_bloques_id[i][j] = (int *) malloc(sizeof(int) * arreglo_variantes.size());
-                    tensor_bloques_egreso[i][j] = (int *) malloc(sizeof(int) * arreglo_variantes.size());
+                    tensor_bloques_dist[i][j] = (double *) malloc(sizeof(double) * arreglo_variantes.size());
                     for(int k=0; k<arreglo_variantes.size() ; k++)
                     {
                         objeto_variante = arreglo_variantes.at(k).toObject();
                         *(*(*(tensor_bloques_id+i)+j)+k) = objeto_variante.value("ID").toInt();
-                        *(*(*(tensor_bloques_egreso+i)+j)+k) = objeto_variante.value("Egreso").toInt();
+                        *(*(*(tensor_bloques_dist+i)+j)+k) = objeto_variante.value("Egreso").toDouble();
                     }
                 }
                 else
@@ -517,12 +612,77 @@ void MainWindow::generar_tensor(QJsonObject obj)
 
 
 }
+
+void MainWindow::generar_tensor_max(QString cadena,double *max, QJsonObject obj)
+{
+    cout << "Generando tensores" << endl;
+    QJsonObject objeto_bloque;
+    QJsonArray arreglo_bloques;
+    QJsonObject objeto_elemento;
+    QJsonArray arreglo_elementos;
+    QJsonObject objeto_variante;
+    QJsonArray arreglo_variantes;
+
+    arreglo_bloques=obj["bloques"].toArray();
+    tensor_bloques_id = (int ***) malloc(sizeof(int**) * arreglo_bloques.size());
+    tensor_bloques_dist = (double ***) malloc(sizeof(double**) * arreglo_bloques.size());
+    matriz_bloques = (int **) malloc(sizeof(int*) * arreglo_bloques.size());
+    vector_bloques = (int *) malloc(sizeof(int) * arreglo_bloques.size());
+    for(int i=0 ; i<arreglo_bloques.size() ; i++)
+    {
+        *(vector_bloques+i) = 0;
+    }
+    for(int i=0 ; i < arreglo_bloques.size() ; i++)
+    {
+       //Se pasa el objeto en curso a objeto_bloque
+       objeto_bloque = arreglo_bloques.at(i).toObject();
+       if(objeto_bloque.value("Elementos").isArray())
+       {
+            arreglo_elementos = objeto_bloque.value("Elementos").toArray();
+            *(vector_bloques+i) = arreglo_elementos.size();
+            matriz_bloques[i] = (int *) malloc(sizeof(int) * arreglo_elementos.size());
+            tensor_bloques_id[i] = (int **) malloc(sizeof(int*) * arreglo_elementos.size());
+            tensor_bloques_dist[i] = (double **) malloc(sizeof(double*) * arreglo_elementos.size());
+            for(int j=0 ; j < arreglo_elementos.size() ; j++)
+            {
+                objeto_elemento = arreglo_elementos.at(j).toObject();
+                if(objeto_elemento.value("Variantes").isArray())
+                {
+                    arreglo_variantes = objeto_elemento.value("Variantes").toArray();
+                    *(*(matriz_bloques+i)+j)= arreglo_variantes.size();
+                    tensor_bloques_id[i][j] = (int *) malloc(sizeof(int) * arreglo_variantes.size());
+                    tensor_bloques_dist[i][j] = (double *) malloc(sizeof(double) * arreglo_variantes.size());
+                    for(int k=0; k<arreglo_variantes.size() ; k++)
+                    {
+                        objeto_variante = arreglo_variantes.at(k).toObject();
+                        *(*(*(tensor_bloques_id+i)+j)+k) = objeto_variante.value("ID").toInt();
+                        *(*(*(tensor_bloques_dist+i)+j)+k) = (*max + objeto_variante.value(cadena).toDouble()) + 1;
+                    }
+                }
+                else
+                {
+                    cout << "El elemento " << objeto_elemento.value("Elemento").toString().toStdString() << " no contiene variantes" <<endl;
+                    cout << "No es posible generar la optimizacion" << endl;
+                    break;
+                }
+            }
+       }
+       else
+       {
+           cout << "El bloque "<< objeto_bloque.value("Bloque").toString().toStdString() << " no contiene elementos"<<endl;
+           cout << "No es posible generar la optimizacion" << endl;
+           break;
+       }
+    }
+}
+
 /*
     Se generan los nodos raiz de cada bloque.
 */
-void MainWindow::generar_raiz(QList<nodo> *nodos_raiz)
+void MainWindow::generar_raiz(QList<nodo> *nodos_raiz, QList<nodo_dist> *nodos_raiz_dist)
 {
     nodo nodo_raiz;
+    nodo_dist raiz_dist;
 
     cout << "Generando nodos raiz" << endl;
 
@@ -531,7 +691,11 @@ void MainWindow::generar_raiz(QList<nodo> *nodos_raiz)
         for (int j=0 ; j<*(vector_bloques+i) ; j++)
         {
             nodo_raiz.append(*(*(*(tensor_bloques_id+i)+j)+0));
+            raiz_dist.append(*(*(*(tensor_bloques_dist+i)+j)+0));
         }
+        nodos_raiz_dist->append(raiz_dist);
+        raiz_dist.clear();
+
         nodos_raiz->append(nodo_raiz);
         nodo_raiz.clear();
     }
@@ -542,30 +706,46 @@ void MainWindow::generar_raiz(QList<nodo> *nodos_raiz)
     se recibe una lista con los nodos raiz de cada bloque
 
 */
-void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodos_grafo)
+void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_raiz_dist, QList<nodo_dist> *nodos_grafo_dist)
 {
-    nodo nodo_nuevo;
-    nodo nodo_final;
-    QList<nodo> nodos_vivos;
+    nodo nodo_nuevo;    
+    nodo nodo_final;    
+    QList<nodo> nodos_vivos;    
     QList<nodo> nodos_utiles;
+
+    nodo_dist nodo_fdist;
+    nodo_dist nodo_ndist;
+    QList<nodo_dist> nodos_vdist;
+
     cout << "Generando combinatoria" << endl;
     for (int b=0 ; b<nodos_raiz->size() ; b++)
     {
         nodos_vivos.append(nodos_raiz->at(b));
+        nodos_vdist.append(nodos_raiz_dist->at(b));
+
         nodos_utiles.append(nodos_raiz->at(b));
+
         nodo_final.clear();
         nodo_final = nodos_vivos.at(0);
         nodo_final.push_front(b);
         nodos_grafo->append(nodo_final);
+
+        nodo_fdist.clear();
+        nodo_fdist = nodos_vdist.at(0);
+        nodo_fdist.push_front(b);
+        nodos_grafo_dist->append(nodo_fdist);
         do{
             nodo_nuevo = nodos_vivos.at(0);
+            nodo_ndist = nodos_vdist.at(0);
             for (int e=0 ; e<nodo_nuevo.size() ; e++)
             {
                 nodo_nuevo = nodos_vivos.at(0);
-
+                nodo_ndist = nodos_vdist.at(0);
                 for (int v=0 ; v<*(*(matriz_bloques+e)+v) ; v++)
                 {
                     nodo_nuevo.replace(e, *(*(*(tensor_bloques_id+b)+e)+v));
+                    nodo_ndist.replace(e, *(*(*(tensor_bloques_dist+b)+e)+v));
+
                     if(nodos_utiles.contains(nodo_nuevo))
                     {
                         //cout << "El nodo ya existe " << nodos_utiles.contains(nodo_nuevo)<< endl;
@@ -581,17 +761,27 @@ void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodo
                         nodo_final.push_front(b);
                         nodos_grafo->append(nodo_final);
 
+                        nodos_vdist.append(nodo_ndist);
+                        nodo_fdist.clear();
+                        nodo_fdist = nodo_ndist;
+                        nodo_fdist.push_front(b);
+                        nodos_grafo_dist->append(nodo_fdist);
                     }
                 }
             }
             nodo_final.clear();
             nodo_nuevo.clear();
             nodos_vivos.pop_front();
+
+            nodo_fdist.clear();
+            nodo_ndist.clear();
+            nodos_vdist.pop_front();
         }while(nodos_vivos.size() != 0);
 
     }
     cout << "nodos finales:" << nodos_utiles.size() <<endl;
-
+    cout << "distancias finales:" << nodos_grafo_dist->size() <<endl;
+    /*
     int contador= 0;
     for (int i=0 ; i<nodos_grafo->size() ; i++)
     {
@@ -604,6 +794,61 @@ void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodo
         }
         cout << endl;
     }
+    */
 
+}
+
+void MainWindow::generar_matriz_adyacencias(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist)
+{
+    int m_lenth = nodos_grafo->size();
+    matriz_ayacencias = (double **) malloc(sizeof(double*) * m_lenth);
+    for (int i=0 ; i<m_lenth ; i++)
+    {
+        matriz_ayacencias[i] = (double *) malloc(sizeof(double) * m_lenth);
+        for (int j=0 ; j<m_lenth ; j++)
+        {
+            *(*(matriz_ayacencias+i)+j) = 0;
+        }
+
+    }
+
+    for (int b=0 ; b<7; b++)
+    {
+        for (int i=0 ; i<m_lenth ; i++)
+        {
+            if(nodos_grafo->at(i).at(0) == b)
+            {
+                for (int j=0 ; j<m_lenth ; j++)
+                {
+                    if(nodos_grafo->at(j).at(0) == b+1)
+                    {
+                        //*(*(matriz_ayacencias+i)+j) = 1;
+                        //*(*(matriz_ayacencias+j)+i) = 1;
+                        double dist_total=0;
+                        for (int k=0 ; k<nodos_grafo_dist->at(j).size()-1 ; k++)
+                        {
+                              dist_total = dist_total + nodos_grafo_dist->at(j).at(k+1);
+                        }
+                        *(*(matriz_ayacencias+i)+j) = dist_total;
+                        *(*(matriz_ayacencias+j)+i) = dist_total;
+                    }
+                }
+            }
+        }
+    }
+
+    /*
+    int count =0;
+    for (int i=0 ; i<m_lenth ; i++)
+    {
+        cout << count << endl;
+        count++;
+        for (int j=0 ; j<m_lenth ; j++)
+        {
+            cout << *(*(matriz_ayacencias+i)+j) << "," ;
+        }
+    cout << endl;
+    }
+    */
 
 }
