@@ -64,6 +64,8 @@ private slots:
 
     void generar_matriz_adyacencias(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist);
 
+    void SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist);
+
 private:
     Ui::MainWindow *ui;
     Agregar_Elemento *ventana_Agregar_Elemento;

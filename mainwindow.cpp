@@ -420,20 +420,10 @@ void MainWindow::on_actionAbrir_triggered()
     }
 }
 /*
-    Funcion Optimizar
-    En esta funcion se generar el preprocesamiento de los elementos y las variantes
-    ingresadas por el usuario.
-
-    Se llena un tensor, donde cada matriz representa un bloque y cada fila del
-    bloque representa un conjunto o elemento, y cada columna una variante de cada
-    elemento.
-
-    Se generan los nodos a partir de la combinacion de las variantes de distintos
-    elementos. Los elementos de un bloque seran conjuntos cuyos elementos son las
-    variantes. Los nodos son una combinacion de un elemento de cada conjunto de cada
-    bloque. Una vez generados los nodos, se generara un grafo a partir de los nodos
-    generados.
-
+    Funcion que se ejecuta al oprimir el boton de optimizar.
+    Se genera un InputDialog que muestra una lista de opciones.
+    Al seleccionar una opcion se envia un parametro a la funcion
+    optimizar.
 */
 void MainWindow::on_actionOptimizar_triggered()
 {
@@ -453,6 +443,22 @@ void MainWindow::on_actionOptimizar_triggered()
     }
 
 }
+/*
+    Funcion Optimizar
+    En esta funcion se generar el preprocesamiento de los elementos y las variantes
+    ingresadas por el usuario.
+
+    Se llena un tensor, donde cada matriz representa un bloque y cada fila del
+    bloque representa un conjunto o elemento, y cada columna una variante de cada
+    elemento.
+
+    Se generan los nodos a partir de la combinacion de las variantes de distintos
+    elementos. Los elementos de un bloque seran conjuntos cuyos elementos son las
+    variantes. Los nodos son una combinacion de un elemento de cada conjunto de cada
+    bloque. Una vez generados los nodos, se generara un grafo a partir de los nodos
+    generados.
+
+*/
 void MainWindow::optimizar(QString cadena)
 {
     QList<nodo> nodos_raiz;
@@ -481,10 +487,10 @@ void MainWindow::optimizar(QString cadena)
     generar_raiz(&nodos_raiz, &nodos_raiz_dist);
     //Generar todos los nodos
     generar_combinatoria(&nodos_raiz, &nodos_grafo, &nodos_raiz_dist, &nodos_grafo_dist);
-
     //Generar Matriz de adyacencias
     generar_matriz_adyacencias(&nodos_grafo, &nodos_grafo_dist);
-
+    //Self Adaptative Modified Pulse Couple Neural Network
+    SAMPCNN(&nodos_grafo,&nodos_grafo_dist);
 
 }
 
@@ -546,8 +552,12 @@ void MainWindow::calcular_maximo(QString cadena,double *max, QJsonObject obj)
            break;
        }
     }
-
 }
+
+/*
+    Se generan areglos con la informacion de los bloques, elemenots y variantes de la
+    estrucutra JSON.
+*/
 void MainWindow::generar_tensor(QJsonObject obj)
 {
     cout << "Generando tensores" << endl;
@@ -612,7 +622,11 @@ void MainWindow::generar_tensor(QJsonObject obj)
 
 
 }
-
+/*
+    Se generan areglos con la informacion de los bloques, elemenots y variantes de la
+    estrucutra JSON. Esta funcion se creo para tomar en cuenta una optimizacion de ingresos
+    o gastos.
+*/
 void MainWindow::generar_tensor_max(QString cadena,double *max, QJsonObject obj)
 {
     cout << "Generando tensores" << endl;
@@ -779,7 +793,35 @@ void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodo
         }while(nodos_vivos.size() != 0);
 
     }
-    cout << "nodos finales:" << nodos_utiles.size() <<endl;
+    //Se agrega el primer nodo el cual sera el punto de partida de la busqueda
+    nodo_final.clear();
+    nodo_final.push_front(-1);
+    nodo_final.push_front(-1);
+    nodos_grafo->push_front(nodo_final);
+    nodo_final.clear();
+
+    nodo_fdist.clear();
+    nodo_fdist.push_front(1);
+    nodo_fdist.push_front(-1);
+    nodos_grafo_dist->push_front(nodo_fdist);
+    nodo_fdist.clear();
+
+    //se arega el ultimo nodo, el cul sera el punto objetivo de la busqueda
+    nodo_final.clear();
+    nodo_final.push_front(-1);
+    nodo_final.push_front(8);
+    nodos_grafo->push_back(nodo_final);
+    nodo_final.clear();
+
+    nodo_fdist.clear();
+    nodo_fdist.push_front(1);
+    nodo_fdist.push_front(8);
+    nodos_grafo_dist->push_back(nodo_fdist);
+    nodo_fdist.clear();
+
+
+
+    cout << "nodos finales:" << nodos_grafo->size() <<endl;
     cout << "distancias finales:" << nodos_grafo_dist->size() <<endl;
     /*
     int contador= 0;
@@ -798,8 +840,12 @@ void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodo
 
 }
 
+/*
+    Se genera la matriz de adyacencias
+*/
 void MainWindow::generar_matriz_adyacencias(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist)
 {
+    cout << "Generando matriz de adyacencias" << endl;
     int m_lenth = nodos_grafo->size();
     matriz_ayacencias = (double **) malloc(sizeof(double*) * m_lenth);
     for (int i=0 ; i<m_lenth ; i++)
@@ -812,7 +858,7 @@ void MainWindow::generar_matriz_adyacencias(QList<nodo> *nodos_grafo, QList<nodo
 
     }
 
-    for (int b=0 ; b<7; b++)
+    for (int b=-1 ; b<9; b++)
     {
         for (int i=0 ; i<m_lenth ; i++)
         {
@@ -851,4 +897,217 @@ void MainWindow::generar_matriz_adyacencias(QList<nodo> *nodos_grafo, QList<nodo
     }
     */
 
+}
+
+void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist)
+{
+    int **puntero_matrizU;
+    int **puntero_matrizY;
+    int menor=1000;
+    int E_umbral=0;
+    int suma_pulsos=0;
+    int delta_E=1;
+    int pulsofinal=0;
+    int iteracion=0;
+    int current=0;
+    int nodo_s = 1;
+    int nodo_g = nodos_grafo->size();
+    unsigned t0, t1;
+
+    list <int> historico;
+    list <int> agenda;
+    list <int> ruta;
+
+    //Matrices dinamicas U e Y
+    puntero_matrizU = new int*[nodos_grafo->size()];
+    puntero_matrizY = new int*[nodos_grafo->size()];
+    for(int i=0 ; i<nodos_grafo->size() ; i++)
+    {
+        puntero_matrizU[i]= new int[nodos_grafo->size()];
+        puntero_matrizY[i]= new int[nodos_grafo->size()];
+    }
+    //Se llenan de ceros las matrices U e Y
+    for(int i=0;i<nodos_grafo->size();i++)
+    {
+        for(int j=0 ; j<nodos_grafo->size() ; j++)
+        {
+           *(*(puntero_matrizU+i)+j)=0;
+           *(*(puntero_matrizY+i)+j)=0;
+        }
+    }
+
+    cout<<"indice de nodo incial "<<nodo_s<<endl;
+    cout<<"indice de nodo final "<<nodo_g<<endl;
+    historico.push_front(nodo_s-1);
+
+    //se copian el costo de los nodos vecinos al nodo inicial.
+    for(int i=0 ; i<nodos_grafo->size() ; i++)
+    {
+        *(*(puntero_matrizU+nodo_s-1)+i)=*(*(matriz_ayacencias+nodo_s-1)+i);
+    }
+
+
+    //se obtiene el costo menor de entre los costos a los nodos vecinos del nodo incial.
+    for(int i=0; i< nodos_grafo->size() ; i++)
+    {
+        if(*(*(puntero_matrizU+nodo_s-1)+i)!=0)
+        {
+            if(*(*(puntero_matrizU+nodo_s-1)+i)<=menor)
+            {
+                menor=*(*(puntero_matrizU+nodo_s-1)+i);
+            }
+        }
+    }
+    E_umbral=menor;
+    //Se inicia la toma del tiempo
+    t0=clock();
+    do{
+
+        //inicio de ciclo
+
+        //Los valores que complen la condicion del umbral en la matriz U dispararan en la matriz y
+        list<int>::iterator iterador_historico;
+        for(iterador_historico = historico.begin();iterador_historico!=historico.end();iterador_historico++)
+        {
+            for(int j=0 ; j<nodos_grafo->size() ; j++)
+            {
+                if(*(*(puntero_matrizU+*iterador_historico)+j)!=0)
+                {
+                    if(*(*(puntero_matrizU+*iterador_historico)+j)==E_umbral)
+                    {
+                        for(int k=0 ; k<nodos_grafo->size() ; k++)
+                        {
+                            if(*(*(puntero_matrizY+k)+j)==1)
+                            {
+                                suma_pulsos=suma_pulsos+1;
+                            }
+                        }
+                        if(suma_pulsos==0)
+                        {
+                            *(*(puntero_matrizY+*iterador_historico)+j)=1;
+                            agenda.push_back(j);
+                            historico.push_back(j);
+                        }
+                        suma_pulsos=0;
+                    }
+                }
+            }
+        }
+        //Se agregan los nodos vecinos en la matriz U, de los nodos que dispararon en el nodo Y
+        list<int>::iterator iterador_agenda;
+        for(iterador_agenda=agenda.begin();iterador_agenda!=agenda.end();iterador_agenda++)
+        {
+            for(int i=0 ; i<nodos_grafo->size() ; i++)
+            {
+                if(*(*(matriz_ayacencias+*iterador_agenda)+i)!=0)
+                {
+                    *(*(puntero_matrizU+*iterador_agenda)+i)=*(*(matriz_ayacencias+*iterador_agenda)+i)+E_umbral;
+                }
+
+            }
+        }
+
+
+        //se pone el valor alto en los nodos vecinos ya disparados.
+        //list<int>::iterator iterador_historico;
+        for(iterador_historico = historico.begin();iterador_historico!=historico.end();iterador_historico++)
+        {
+
+            for(int i=0 ; i<nodos_grafo->size() ; i++)
+            {
+                list<int>::iterator iterador_historico1;
+                for(iterador_historico1 = historico.begin();iterador_historico1!=historico.end();iterador_historico1++)
+                {
+                    if(i==*iterador_historico1 && *(*(matriz_ayacencias+*iterador_historico)+i)!=0)
+                    {
+                        *(*(puntero_matrizU+*iterador_historico)+i)=10000;
+                    }
+                }
+            }
+        }
+
+        //se borran los nodos de la agenda.
+        agenda.clear();
+        //Se obtiene el costo menor de la matriz U de los nodos adyasentes a los nodos que ya han disparado en la matriz Y.
+        //Direrentes de 0 y mayores que el umbral anterior.
+        menor=1000;
+        for(iterador_historico = historico.begin();iterador_historico!=historico.end();iterador_historico++)
+        {
+            for(int i=0 ; i<nodos_grafo->size() ; i++)
+            {
+                if(*(*(puntero_matrizU+*iterador_historico)+i)!=0 && *(*(puntero_matrizU+*iterador_historico)+i)> E_umbral)
+                {
+                    if(*(*(puntero_matrizU+*iterador_historico)+i)<=menor)
+                    {
+                        menor=*(*(puntero_matrizU+*iterador_historico)+i);
+                    }
+                }
+            }
+        }
+        //Se incrementa E_umbral en delta_E.
+        delta_E=menor-E_umbral;
+        E_umbral=E_umbral+delta_E;
+        //se verifica si alguno de los vecinos del nodo final se ha encendido
+        for(int i=0 ; i<nodos_grafo->size() ; i++)
+        {
+            if(*(*(puntero_matrizY+i)+nodo_g-1)==1)
+            {
+                pulsofinal=1;
+                cout<<"Nodo alcanzado"<<endl;
+
+            }
+        }
+
+
+        iteracion=iteracion+1;
+        cout<<"iteracion:"<<iteracion<<endl;
+        //fin de ciclo
+    }while(pulsofinal!=1);
+    current=nodo_g-1;
+    ruta.push_front(current);
+    cout<<"Nodo final:"<<current+1<<endl;
+    cout<<"Extraccion del conocimiento"<<endl;
+    do{
+        for(int i=0 ; i<nodos_grafo->size() ; i++)
+        {
+            if(*(*(puntero_matrizY+i)+current)==1)
+            {
+                current=i;
+                ruta.push_front(current);
+            }
+        }
+    }while(current!=nodo_s-1);
+
+    t1=clock();
+    /*
+    for(int i=0;i<lineas_cadena;i++)
+    {
+        for(int j=0;j<lineas_cadena;j++)
+        {
+           cout<<*(*(puntero_matrizY+i)+j)<<" ";
+        }
+        cout<<endl;
+    }
+    cout<<endl;
+    */
+    cout<<"Ruta optima:";
+    list<int>::iterator iterador_ruta;
+    for(iterador_ruta = ruta.begin();iterador_ruta!=ruta.end();iterador_ruta++)
+    {
+        cout<<*iterador_ruta+1<<"-";
+    }
+    cout<<endl;
+    double time = (double(t1-t0)/CLOCKS_PER_SEC);
+    cout<<endl<<"Costo:"<<E_umbral-delta_E<<endl;
+    cout << "Tiempo de ejecucion: " << time << " segundos" << endl;
+    cout<<"Iteraciones:"<<iteracion<<endl;
+    //Libera memoria
+    for(int i=0 ; i<nodos_grafo->size() ;i++)
+    {
+        delete[] puntero_matrizU[i];
+        delete[] puntero_matrizY[i];
+
+    }
+    delete puntero_matrizU;
+    delete puntero_matrizY;
 }

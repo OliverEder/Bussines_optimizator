@@ -127,6 +127,7 @@
    </attribute>
    <addaction name="actionNuevo"/>
    <addaction name="actionAgregar_elemento"/>
+   <addaction name="actionOptimizar"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionNuevo">
