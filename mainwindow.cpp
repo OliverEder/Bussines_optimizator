@@ -467,7 +467,10 @@ void MainWindow::optimizar(QString cadena)
     QList<nodo> nodos_utiles;
     QList<nodo> nodos_grafo;
     QList<nodo_dist> nodos_grafo_dist;
+    list <int> ruta;
+    QMap<QString, int> resultados_ruta;
 
+    ruta.clear();
     double max = 0;
 
     if(cadena == "Egreso")
@@ -490,7 +493,8 @@ void MainWindow::optimizar(QString cadena)
     //Generar Matriz de adyacencias
     generar_matriz_adyacencias(&nodos_grafo, &nodos_grafo_dist);
     //Self Adaptative Modified Pulse Couple Neural Network
-    SAMPCNN(&nodos_grafo,&nodos_grafo_dist);
+    SAMPCNN(&nodos_grafo, &nodos_grafo_dist, &ruta, &resultados_ruta);
+
 
 }
 
@@ -899,7 +903,7 @@ void MainWindow::generar_matriz_adyacencias(QList<nodo> *nodos_grafo, QList<nodo
 
 }
 
-void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist)
+void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist, list<int> *ruta, QMap<QString, int> *resultados_ruta)
 {
     int **puntero_matrizU;
     int **puntero_matrizY;
@@ -916,7 +920,7 @@ void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo
 
     list <int> historico;
     list <int> agenda;
-    list <int> ruta;
+    //list <int> ruta;
 
     //Matrices dinamicas U e Y
     puntero_matrizU = new int*[nodos_grafo->size()];
@@ -936,8 +940,8 @@ void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo
         }
     }
 
-    cout<<"indice de nodo incial "<<nodo_s<<endl;
-    cout<<"indice de nodo final "<<nodo_g<<endl;
+    //cout<<"indice de nodo incial "<<nodo_s<<endl;
+    //cout<<"indice de nodo final "<<nodo_g<<endl;
     historico.push_front(nodo_s-1);
 
     //se copian el costo de los nodos vecinos al nodo inicial.
@@ -1053,27 +1057,26 @@ void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo
             if(*(*(puntero_matrizY+i)+nodo_g-1)==1)
             {
                 pulsofinal=1;
-                cout<<"Nodo alcanzado"<<endl;
+                //cout<<"Nodo alcanzado"<<endl;
 
             }
         }
 
-
         iteracion=iteracion+1;
-        cout<<"iteracion:"<<iteracion<<endl;
+        //cout<<"iteracion:"<<iteracion<<endl;
         //fin de ciclo
     }while(pulsofinal!=1);
     current=nodo_g-1;
-    ruta.push_front(current);
-    cout<<"Nodo final:"<<current+1<<endl;
-    cout<<"Extraccion del conocimiento"<<endl;
+    ruta->push_front(current);
+    //cout<<"Nodo final:"<<current+1<<endl;
+    //cout<<"Extraccion del conocimiento"<<endl;
     do{
         for(int i=0 ; i<nodos_grafo->size() ; i++)
         {
             if(*(*(puntero_matrizY+i)+current)==1)
             {
                 current=i;
-                ruta.push_front(current);
+                ruta->push_front(current);
             }
         }
     }while(current!=nodo_s-1);
@@ -1090,19 +1093,22 @@ void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo
     }
     cout<<endl;
     */
-    cout<<"Ruta optima:";
+    /*
     list<int>::iterator iterador_ruta;
-    for(iterador_ruta = ruta.begin();iterador_ruta!=ruta.end();iterador_ruta++)
+    for(iterador_ruta = ruta->begin();iterador_ruta!=ruta->end();iterador_ruta++)
     {
         cout<<*iterador_ruta+1<<"-";
     }
     cout<<endl;
+    */
     double time = (double(t1-t0)/CLOCKS_PER_SEC);
-    cout<<endl<<"Costo:"<<E_umbral-delta_E<<endl;
-    cout << "Tiempo de ejecucion: " << time << " segundos" << endl;
-    cout<<"Iteraciones:"<<iteracion<<endl;
+    resultados_ruta->insert("Costo", E_umbral-delta_E);
+    resultados_ruta->insert("Tiempo", time);
+    //cout << "Tiempo de ejecucion: " << time << " segundos" << endl;
+    resultados_ruta->insert("Iteraciones", iteracion);
+    //cout<<"Iteraciones:"<<iteracion<<endl;
     //Libera memoria
-    for(int i=0 ; i<nodos_grafo->size() ;i++)
+    for(int i=0 ; i<nodos_grafo->size() ; i++)
     {
         delete[] puntero_matrizU[i];
         delete[] puntero_matrizY[i];

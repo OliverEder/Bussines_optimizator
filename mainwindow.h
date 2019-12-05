@@ -64,7 +64,7 @@ private slots:
 
     void generar_matriz_adyacencias(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist);
 
-    void SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist);
+    void SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist, list<int> *ruta, QMap<QString, int> *resultados_ruta);
 
 private:
     Ui::MainWindow *ui;
