@@ -54,27 +54,18 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::on_actionNuevo_triggered()
+QJsonObject MainWindow::generar_modelo_json(QString nombre_modelo, QString descripcion)
 {
-
-    //Si el treewidget esta oculto entonces mostrar la ventana_nuevo_modelo
-    if(ui->treeWidget->isHidden()==true)
-    {
-        ventana_nuevo_modelo->show();
-
-    }
-}
-
-void MainWindow::recibir_nuevo_modelo(QString nombre_modelo, QString descripcion)
-{
+    QJsonObject modelo_json;
     QJsonObject bloque;
     QJsonArray bloques;
     QJsonArray elementos;
     QJsonObject elemento;
+    QJsonObject modelo_json1;
     //Se agregan campos de nombre, descripcion al JsonObject obj
-    obj["nombre"]=nombre_modelo;
-    obj["descripcion"]=descripcion;
-    obj["bloques"]="";
+    modelo_json["nombre"]=nombre_modelo;
+    modelo_json["descripcion"]=descripcion;
+    modelo_json["bloques"]="";
 
     //se agregan campos al objeto
     bloque.insert("Bloque","Propuesta de valor");
@@ -104,7 +95,29 @@ void MainWindow::recibir_nuevo_modelo(QString nombre_modelo, QString descripcion
 
     //bloque["Acciones clave"]=elemento;
     //se agrega el objeto al campo bloques
-    obj["bloques"]=bloques;
+    modelo_json["bloques"]=bloques;
+    return modelo_json;
+}
+
+void MainWindow::on_actionNuevo_triggered()
+{
+
+    //Si el treewidget esta oculto entonces mostrar la ventana_nuevo_modelo
+    if(ui->treeWidget->isHidden()==true)
+    {
+        ventana_nuevo_modelo->show();
+
+    }
+}
+
+void MainWindow::recibir_nuevo_modelo(QString nombre_modelo, QString descripcion)
+{
+    QJsonObject bloque;
+    QJsonArray bloques;
+    QJsonArray elementos;
+    QJsonObject elemento;
+
+    obj = generar_modelo_json( nombre_modelo, descripcion);
 
     ui->actionAgregar_elemento->setDisabled(false);
     ui->treeWidget->show();
@@ -494,7 +507,8 @@ void MainWindow::optimizar(QString cadena)
     generar_matriz_adyacencias(&nodos_grafo, &nodos_grafo_dist);
     //Self Adaptative Modified Pulse Couple Neural Network
     SAMPCNN(&nodos_grafo, &nodos_grafo_dist, &ruta, &resultados_ruta);
-
+    //Generar reporte.
+    generar_reporte(&nodos_grafo, &ruta, &resultados_ruta, obj);
 
 }
 
@@ -843,7 +857,6 @@ void MainWindow::generar_combinatoria(QList<nodo> *nodos_raiz, QList<nodo> *nodo
     */
 
 }
-
 /*
     Se genera la matriz de adyacencias
 */
@@ -902,7 +915,9 @@ void MainWindow::generar_matriz_adyacencias(QList<nodo> *nodos_grafo, QList<nodo
     */
 
 }
-
+/*
+    Sefl Adaptative Modified Pulse Coupled Neural Network
+*/
 void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist, list<int> *ruta, QMap<QString, int> *resultados_ruta)
 {
     int **puntero_matrizU;
@@ -947,7 +962,7 @@ void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo
     //se copian el costo de los nodos vecinos al nodo inicial.
     for(int i=0 ; i<nodos_grafo->size() ; i++)
     {
-        *(*(puntero_matrizU+nodo_s-1)+i)=*(*(matriz_ayacencias+nodo_s-1)+i);
+        *(*(puntero_matrizU+nodo_s-1)+i) = *(*(matriz_ayacencias+nodo_s-1)+i);
     }
 
 
@@ -1024,7 +1039,7 @@ void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo
                 {
                     if(i==*iterador_historico1 && *(*(matriz_ayacencias+*iterador_historico)+i)!=0)
                     {
-                        *(*(puntero_matrizU+*iterador_historico)+i)=10000;
+                        *(*(puntero_matrizU+*iterador_historico)+i) = 10000;
                     }
                 }
             }
@@ -1034,7 +1049,7 @@ void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo
         agenda.clear();
         //Se obtiene el costo menor de la matriz U de los nodos adyasentes a los nodos que ya han disparado en la matriz Y.
         //Direrentes de 0 y mayores que el umbral anterior.
-        menor=1000;
+        menor = 1000;
         for(iterador_historico = historico.begin();iterador_historico!=historico.end();iterador_historico++)
         {
             for(int i=0 ; i<nodos_grafo->size() ; i++)
@@ -1116,4 +1131,45 @@ void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo
     }
     delete puntero_matrizU;
     delete puntero_matrizY;
+}
+/*
+    Extraer los nodos
+    Lista de nodos pertenecientes a la ruta
+    Bloque
+        Elemento
+            Variante
+        Elemento
+            Variante
+    Bloque
+        Elemento
+            Variante
+        Elemento
+            Variante
+*/
+
+void MainWindow::generar_reporte(QList<nodo> *nodos_grafo, list<int> *ruta, QMap<QString, int> *resultados_ruta, QJsonObject obj)
+{
+    QJsonObject modelo_optimizado;
+    QList<nodo> nodos_reporte;
+    nodo nodo;
+    ruta->pop_front();
+    ruta->pop_back();
+    list<int>::iterator iterador_ruta;
+
+    for(iterador_ruta= ruta->begin() ; iterador_ruta != ruta->end() ; iterador_ruta++)
+    {
+        for(int i=0 ; i<nodos_grafo->size() ; i++)
+        {
+            if(*iterador_ruta == i)
+            {
+                //nodos_reporte.append(nodos_grafo->at(*iterador_ruta));
+                nodo = nodos_grafo->at(*iterador_ruta);
+                nodos_reporte.append(nodo);
+            }
+        }
+    }
+    cout << "nodos:" << nodos_reporte.size() << endl;
+    modelo_optimizado = generar_modelo_json(obj["nombre"].toString(), obj["descripcion"].toString());
+
+
 }

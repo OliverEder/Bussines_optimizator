@@ -66,6 +66,11 @@ private slots:
 
     void SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo_dist, list<int> *ruta, QMap<QString, int> *resultados_ruta);
 
+    void generar_reporte(QList<nodo> *nodos_grafo, list<int> *ruta, QMap<QString, int> *resultados_ruta, QJsonObject obj);
+
+    QJsonObject generar_modelo_json(QString nombre_modelo, QString descripcion);
+
+
 private:
     Ui::MainWindow *ui;
     Agregar_Elemento *ventana_Agregar_Elemento;
