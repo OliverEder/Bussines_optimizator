@@ -508,7 +508,7 @@ void MainWindow::optimizar(QString cadena)
     //Self Adaptative Modified Pulse Couple Neural Network
     SAMPCNN(&nodos_grafo, &nodos_grafo_dist, &ruta, &resultados_ruta);
     //Generar reporte.
-    generar_reporte(&nodos_grafo, &ruta, &resultados_ruta, obj);
+    generar_reporte(&nodos_grafo, &ruta, &resultados_ruta);
 
 }
 
@@ -1135,25 +1135,27 @@ void MainWindow::SAMPCNN(QList<nodo> *nodos_grafo, QList<nodo_dist> *nodos_grafo
 /*
     Extraer los nodos
     Lista de nodos pertenecientes a la ruta
-    Bloque
-        Elemento
-            Variante
-        Elemento
-            Variante
-    Bloque
-        Elemento
-            Variante
-        Elemento
-            Variante
+
 */
 
-void MainWindow::generar_reporte(QList<nodo> *nodos_grafo, list<int> *ruta, QMap<QString, int> *resultados_ruta, QJsonObject obj)
+void MainWindow::generar_reporte(QList<nodo> *nodos_grafo, list<int> *ruta, QMap<QString, int> *resultados_ruta)
 {
     QJsonObject modelo_optimizado;
     QList<nodo> nodos_reporte;
     nodo nodo;
     ruta->pop_front();
     ruta->pop_back();
+    QJsonObject modelo_json;
+    QJsonObject bloque;
+    QJsonArray bloques;
+    QJsonArray elementos;
+    QJsonObject elemento;
+    QJsonArray variantes;
+    QJsonArray variantes_final;
+    QJsonObject variante;
+
+    QJsonObject modelo_json1;
+
     list<int>::iterator iterador_ruta;
 
     for(iterador_ruta= ruta->begin() ; iterador_ruta != ruta->end() ; iterador_ruta++)
@@ -1164,12 +1166,83 @@ void MainWindow::generar_reporte(QList<nodo> *nodos_grafo, list<int> *ruta, QMap
             {
                 //nodos_reporte.append(nodos_grafo->at(*iterador_ruta));
                 nodo = nodos_grafo->at(*iterador_ruta);
+                nodo.pop_front();
                 nodos_reporte.append(nodo);
             }
         }
     }
     cout << "nodos:" << nodos_reporte.size() << endl;
-    modelo_optimizado = generar_modelo_json(obj["nombre"].toString(), obj["descripcion"].toString());
 
+    for (int r=0 ; r<nodos_reporte.size() ; r++)
+    {
+        for (int c=0 ; c<nodos_reporte.at(r).size(); c++)
+        {
+            cout << nodos_reporte.at(r).at(c) << " ";
+        }
+        cout << endl;
+    }
+
+    //modelo_optimizado = generar_modelo_json(obj["nombre"].toString(), obj["descripcion"].toString());
+
+    modelo_optimizado = obj;
+
+    bloques = modelo_optimizado["bloques"].toArray();
+    for (int b=0 ; b<bloques.size() ; b++)
+    {
+        bloque = bloques.at(b).toObject();
+        elementos = bloque["Elementos"].toArray();
+        for (int e=0 ; e<elementos.size() ; e++)
+        {
+            elemento = elementos.at(e).toObject();
+            variantes = elemento["Variantes"].toArray();
+            for (int v=0 ; v<variantes.size() ; v++)
+            {
+                variante = variantes.at(v).toObject();
+                //cout << variante["ID"].toInt() << " ";
+
+                for(int r=0 ; r<nodos_reporte.size() ; r++)
+                {
+                    if(nodos_reporte.at(r).contains(variante["ID"].toInt()))
+                    {
+                        cout <<  variante["ID"].toInt() << endl;
+                        variantes_final.append(variante);
+                        elemento["Variantes"]=variantes_final;
+                        elementos.replace(e,elemento);
+                        bloque["Elementos"]=elementos;
+                        bloques.replace(b,bloque);
+                        modelo_optimizado["bloques"]=bloques;
+                        variantes_final.pop_front();
+                    }
+                }
+
+            }
+
+        }
+    }
+    //guardar archivo
+    QString json_filter = "JSON (*.json)";
+    QString nombre_archivo = QFileDialog::getSaveFileName(this, tr("Guardar archivo"), "/");
+    if(nombre_archivo.isEmpty())
+    {
+
+    }
+    else
+    {
+        QJsonDocument doc;
+        doc.setObject(modelo_optimizado);
+        QByteArray data_json = doc.toJson();
+        QFile output(nombre_archivo);
+        if(output.open(QIODevice::WriteOnly | QIODevice::Text))
+        {
+            output.write(data_json);
+            output.close();
+            QMessageBox::information(this, tr("Mensaje"), tr("Documento guardado correctamente"));
+        }
+        else
+        {
+            QMessageBox::critical(this, tr("Error"), output.errorString());
+        }
+
+    }
 
 }
